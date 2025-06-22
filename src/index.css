@@ -1,3 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-fast;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-100 text-text-secondary hover:bg-gray-200;
+  }
+
+  .btn-accent {
+    @apply bg-accent text-white hover:bg-accent-600;
+  }
+
+  .input {
+    @apply w-full px-4 py-2 rounded-md border border-light bg-surface text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent;
+  }
+
+  .card {
+    @apply bg-surface rounded-lg shadow-subtle;
+  }
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
