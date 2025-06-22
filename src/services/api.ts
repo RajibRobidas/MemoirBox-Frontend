@@ -118,6 +118,25 @@ export const memoryService = {
   addComment: async (memoryId: string, text: string) => {
     const response = await api.post(`/memories/${memoryId}/comments`, { text });
     return response.data;
+  },
+
+  getTimelineCards: async () => {
+    const response = await api.get('/timeline-cards');
+    return response.data;
+  },
+
+  uploadTimelineCardImage: async (formData: FormData) => {
+    const response = await api.post('/timeline-cards/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  createTimelineCard: async (cardData: any) => {
+    const response = await api.post('/timeline-cards', cardData);
+    return response.data;
   }
 };
 

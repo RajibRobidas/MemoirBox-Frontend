@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { memoryService } from '../services/api';
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -113,53 +113,37 @@ const Upload: React.FC = () => {
       }
 
       console.log('Uploading file:', file.name);
-      const response = await axios.post('http://localhost:3001/api/memories/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
-        },
-        onUploadProgress: (progressEvent) => {
-          const progress = (progressEvent.loaded / progressEvent.total!) * 100;
-          setUploadProgress(progress);
-        }
-      });
+      const uploadRes = await memoryService.uploadMemory(formData);
 
-      if (response.data && response.data.secure_url) {
-        console.log('File uploaded successfully:', response.data.secure_url);
+      if (uploadRes.imageUrl) {
+        console.log('File uploaded successfully:', uploadRes.imageUrl);
         
         // Create memory with the uploaded image
         const memoryData = {
           title: metadata.title,
           description: metadata.description,
-          imageUrls: [response.data.secure_url],
+          imageUrls: [uploadRes.imageUrl],
           date: metadata.dateTaken,
           location: metadata.location || '',
           tags: metadata.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-          visibility: metadata.privacy
+          visibility: metadata.privacy as 'private' | 'family' | 'public'
         };
 
         console.log('Creating memory with data:', memoryData);
-        const memoryResponse = await axios.post('http://localhost:3001/api/memories', memoryData, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        await memoryService.createMemory(memoryData);
 
-        if (memoryResponse.status === 201) {
-          console.log('Memory created successfully:', memoryResponse.data);
-          setShowSuccessModal(true);
-          // Clear form and files after successful upload
-          setFiles([]);
-          setMetadata({
-            title: '',
-            description: '',
-            dateTaken: '',
-            location: '',
-            tags: '',
-            collection: '',
-            privacy: 'private'
-          });
-        }
+        setShowSuccessModal(true);
+        // Clear form and files after successful upload
+        setFiles([]);
+        setMetadata({
+          title: '',
+          description: '',
+          dateTaken: '',
+          location: '',
+          tags: '',
+          collection: '',
+          privacy: 'private'
+        });
       } else {
         throw new Error('Invalid response from server');
       }

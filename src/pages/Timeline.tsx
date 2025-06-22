@@ -7,6 +7,7 @@ import NotificationPopup from './Timeline/NotificationPopup';
 import NotificationModal from './Timeline/NotificationModal';
 import TimelineCard from './Timeline/TimelineCard';
 import axios from 'axios';
+import { memoryService } from '../services/api';
 
 const filterChips = [
   'All Memories',
@@ -205,10 +206,16 @@ const Timeline: React.FC = () => {
   }, [countdowns, notificationSettings]);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/timeline-cards')
-      .then(res => res.json())
-      .then(data => setTimelineCards(data))
-      .catch(err => console.error('Failed to fetch timeline cards:', err));
+    const fetchTimelineCards = async () => {
+      try {
+        const response = await memoryService.getTimelineCards();
+        setTimelineCards(response);
+      } catch (error) {
+        console.error('Error fetching timeline cards:', error);
+      }
+    };
+
+    fetchTimelineCards();
   }, []);
 
   useEffect(() => {
@@ -244,6 +251,52 @@ const Timeline: React.FC = () => {
 
   const handleDeleteCountdown = (id: number) => {
     setCountdowns(countdowns.filter(c => c.id !== id));
+  };
+
+  const handleAddCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cardDetails = newCard;
+    if (!cardDetails.title || !cardDetails.date || !cardDetails.type || !cardDetails.imageFile) {
+      setUploadError('Please fill all required fields and select an image');
+      return;
+    }
+    setIsUploading(true);
+    setUploadProgress(0);
+    try {
+      const imageFile = cardDetails.imageFile;
+      let newImageUrl = cardDetails.imageUrl;
+
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        try {
+          const uploadRes = await memoryService.uploadTimelineCardImage(formData);
+          newImageUrl = uploadRes.imageUrl;
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          return;
+        }
+      }
+
+      const cardData = {
+        title: cardDetails.title,
+        date: cardDetails.date,
+        type: cardDetails.type,
+        description: cardDetails.description,
+        imageUrl: newImageUrl
+      };
+
+      const createdCard = await memoryService.createTimelineCard(cardData);
+      setTimelineCards([...timelineCards, createdCard]);
+      setShowAddCardModal(false);
+      setNewCard({ title: '', date: '', type: '', description: '', imageUrl: '', imageFile: null });
+      setUploadSuccess(true);
+    } catch (error) {
+      console.error('Error creating timeline card:', error);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   return (
@@ -532,61 +585,7 @@ const Timeline: React.FC = () => {
             <div className="flex justify-end space-x-2 mt-4">
               <button onClick={() => setShowAddCardModal(false)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
               <button
-                onClick={async () => {
-                  setUploadError('');
-                  setUploadSuccess(false);
-                  if (!newCard.title || !newCard.date || !newCard.type || !newCard.imageFile) {
-                    setUploadError('Please fill all required fields and select an image');
-                    return;
-                  }
-                  setIsUploading(true);
-                  setUploadProgress(0);
-                  try {
-                    // Step 1: Upload image
-                    const formData = new FormData();
-                    formData.append('image', newCard.imageFile);
-                    const token = localStorage.getItem('memoirbox_token');
-                    const uploadRes = await axios.post('http://localhost:3001/api/timeline-cards/upload', formData, {
-                      headers: {
-                        'Content-Type': 'multipart/form-data',
-                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                      },
-                      onUploadProgress: (progressEvent) => {
-                        if (progressEvent.total) {
-                          const progress = (progressEvent.loaded / progressEvent.total) * 100;
-                          setUploadProgress(progress);
-                        }
-                      }
-                    });
-                    if (!uploadRes.data || !uploadRes.data.secure_url) throw new Error('Image upload failed');
-                    // Step 2: Create timeline card
-                    const cardRes = await axios.post('http://localhost:3001/api/timeline-cards', {
-                      title: newCard.title,
-                      date: newCard.date,
-                      type: newCard.type,
-                      description: newCard.description,
-                      imageUrl: uploadRes.data.secure_url
-                    }, {
-                      headers: {
-                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                      }
-                    });
-                    if (cardRes.status !== 201) throw new Error('Failed to create card');
-                    const card = cardRes.data;
-                    setTimelineCards(cards => [...cards, card]);
-                    setUploadSuccess(true);
-                    setTimeout(() => {
-                      setShowAddCardModal(false);
-                      setNewCard({ title: '', date: '', type: '', description: '', imageUrl: '', imageFile: null });
-                      setUploadSuccess(false);
-                    }, 1000);
-                  } catch (err) {
-                    setUploadError('Failed to upload card');
-                  } finally {
-                    setIsUploading(false);
-                    setUploadProgress(0);
-                  }
-                }}
+                onClick={handleAddCard}
                 className={`px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 disabled={isUploading}
               >
