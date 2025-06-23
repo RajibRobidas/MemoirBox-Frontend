@@ -256,6 +256,7 @@ const Timeline: React.FC = () => {
   const handleAddCard = async (e: React.FormEvent) => {
     e.preventDefault();
     const cardDetails = newCard;
+    setUploadError(''); // Clear previous errors
     if (!cardDetails.title || !cardDetails.date || !cardDetails.type || !cardDetails.imageFile) {
       setUploadError('Please fill all required fields and select an image');
       return;
@@ -271,11 +272,25 @@ const Timeline: React.FC = () => {
         formData.append('image', imageFile);
         try {
           const uploadRes = await memoryService.uploadTimelineCardImage(formData);
-          newImageUrl = uploadRes.imageUrl;
+          // Accept both imageUrl and secure_url for compatibility
+          newImageUrl = uploadRes.imageUrl || uploadRes.secure_url;
+          if (!newImageUrl) {
+            setUploadError('Image upload failed: No image URL returned.');
+            setIsUploading(false);
+            return;
+          }
         } catch (error) {
           console.error('Error uploading image:', error);
+          setUploadError('Image upload failed. Please try again.');
+          setIsUploading(false);
           return;
         }
+      }
+
+      if (!newImageUrl) {
+        setUploadError('Image upload failed. No image URL available.');
+        setIsUploading(false);
+        return;
       }
 
       const cardData = {
@@ -286,13 +301,21 @@ const Timeline: React.FC = () => {
         imageUrl: newImageUrl
       };
 
-      const createdCard = await memoryService.createTimelineCard(cardData);
-      setTimelineCards([...timelineCards, createdCard]);
-      setShowAddCardModal(false);
-      setNewCard({ title: '', date: '', type: '', description: '', imageUrl: '', imageFile: null });
-      setUploadSuccess(true);
+      console.log('Creating timeline card with data:', cardData);
+
+      try {
+        const createdCard = await memoryService.createTimelineCard(cardData);
+        setTimelineCards([...timelineCards, createdCard]);
+        setShowAddCardModal(false);
+        setNewCard({ title: '', date: '', type: '', description: '', imageUrl: '', imageFile: null });
+        setUploadSuccess(true);
+      } catch (error) {
+        console.error('Error creating timeline card:', error);
+        setUploadError('Failed to create timeline card. Please try again.');
+      }
     } catch (error) {
-      console.error('Error creating timeline card:', error);
+      console.error('Unexpected error:', error);
+      setUploadError('An unexpected error occurred. Please try again.');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
