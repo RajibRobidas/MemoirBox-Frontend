@@ -115,14 +115,15 @@ const Upload: React.FC = () => {
       console.log('Uploading file:', file.name);
       const uploadRes = await memoryService.uploadMemory(formData);
 
-      if (uploadRes.imageUrl) {
-        console.log('File uploaded successfully:', uploadRes.imageUrl);
+      const uploadedUrl = uploadRes.imageUrl || uploadRes.secure_url;
+      if (uploadedUrl) {
+        console.log('File uploaded successfully:', uploadedUrl);
         
         // Create memory with the uploaded image
         const memoryData = {
           title: metadata.title,
           description: metadata.description,
-          imageUrls: [uploadRes.imageUrl],
+          imageUrls: [uploadedUrl],
           date: metadata.dateTaken,
           location: metadata.location || '',
           tags: metadata.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
